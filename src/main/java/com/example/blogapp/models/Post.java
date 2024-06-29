@@ -8,14 +8,28 @@ public class Post {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int postId;
+
     private String title;
     private String content;
     private boolean approved;
+    private int userId;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "user_id")
-    private User user;
+    @Transient
+    private String userName;
+    @Transient
+    private String userEmail;
 
+    // Constructors
+    public Post() {}
+
+    public Post(String title, String content, int userId) {
+        this.title = title;
+        this.content = content;
+        this.userId = userId;
+        this.approved = false;
+    }
+
+    // Getters and Setters
     public int getPostId() {
         return postId;
     }
@@ -48,14 +62,40 @@ public class Post {
         this.approved = approved;
     }
 
-    public User getUser() {
-        return user;
+    public int getUserId() {
+        return userId;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public void setUserId(int userId) {
+        this.userId = userId;
     }
 
-    // Constructors, getters, and setters
-    
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
+
+    public String getUserEmail() {
+        return userEmail;
+    }
+
+    public void setUserEmail(String userEmail) {
+        this.userEmail = userEmail;
+    }
+
+    @Override
+    public String toString() {
+        return "Post{" +
+                "postId=" + postId +
+                ", title='" + title + '\'' +
+                ", content='" + content + '\'' +
+                ", approved=" + approved +
+                ", userId=" + userId +
+                ", userName='" + userName + '\'' +
+                ", userEmail='" + userEmail + '\'' +
+                '}';
+    }
 }

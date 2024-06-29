@@ -1,74 +1,148 @@
-Contents of ./BlogappApplication.java:
+Contents of ./PostServiceApplication.java:
 package com.example.blogapp;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
-public class BlogappApplication {
+public class PostServiceApplication {
+    private static final Logger logger = LoggerFactory.getLogger(PostServiceApplication.class);
 
-	public static void main(String[] args) {
-		SpringApplication.run(BlogappApplication.class, args);
-	}
+    public static void main(String[] args) {
+        logger.info("Starting Post Service Application");
+        SpringApplication.run(PostServiceApplication.class, args);
+        logger.info("Post Service Application started");
+    }
 
+    @Bean
+    public RestTemplate restTemplate() {
+        logger.info("Creating RestTemplate bean");
+        return new RestTemplate();
+    }
 }
-
 
 Contents of ./controllers\PostController.java:
 package com.example.blogapp.controllers;
 
-import java.util.List;
 import com.example.blogapp.models.Post;
 import com.example.blogapp.services.PostService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
+
+import javax.annotation.PostConstruct;
 
 @RestController
 @RequestMapping("/api/posts")
 public class PostController {
+    private static final Logger logger = LoggerFactory.getLogger(PostController.class);
+    @PostConstruct
+    public void init() {
+        logger.info("PostController initialized");
+    }
+
     @Autowired
     private PostService postService;
 
     @PostMapping
-    public Post createPost(@RequestBody Post post) {
-        return postService.createPost(post);
+    public ResponseEntity<?> createPost(@RequestBody Post post) {
+        logger.info("Received request to create post: {}", post);
+        try {
+            Post createdPost = postService.createPost(post);
+            logger.info("Created post: {}", createdPost);
+            return new ResponseEntity<>(createdPost, HttpStatus.CREATED);
+        } catch (Exception e) {
+            logger.error("Error creating post", e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @PutMapping("/{postId}/approve")
-    public void approvePost(@PathVariable int postId) {
-        postService.approvePost(postId);
+    public ResponseEntity<?> approvePost(@PathVariable int postId) {
+        logger.info("Received request to approve post with id: {}", postId);
+        try {
+            postService.approvePost(postId);
+            logger.info("Post approved successfully: {}", postId);
+            return new ResponseEntity<>("Post approved successfully", HttpStatus.OK);
+        } catch (RuntimeException e) {
+            logger.error("Error approving post with id: {}", postId, e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+        }
     }
 
     @GetMapping
     public ResponseEntity<List<Post>> getAllPosts() {
-        List<Post> posts = postService.getAllPosts();
-        return ResponseEntity.ok(posts);
-
-    // Other endpoints for post management
-}
-}
-
-Contents of ./controllers\UserController.java:
-package com.example.blogapp.controllers;
-
-import com.example.blogapp.models.User;
-import com.example.blogapp.services.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-
-@RestController
-@RequestMapping("/api/users")
-public class UserController {
-    @Autowired
-    private UserService userService;
-
-    @PostMapping
-    public User createUser(@RequestBody User user) {
-        return userService.createUser(user);
+        logger.info("Received request to get all posts");
+        try {
+            List<Post> posts = postService.getAllPosts();
+            logger.info("Retrieved {} posts", posts.size());
+            return new ResponseEntity<>(posts, HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Error retrieving all posts", e);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    // Other endpoints for user management
+    @GetMapping("/{postId}")
+    public ResponseEntity<?> getPostById(@PathVariable int postId) {
+        logger.info("Received request to get post with id: {}", postId);
+        try {
+            Post post = postService.getPostById(postId);
+            logger.info("Retrieved post: {}", post);
+            return new ResponseEntity<>(post, HttpStatus.OK);
+        } catch (RuntimeException e) {
+            logger.error("Error retrieving post with id: {}", postId, e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+        }
+    }
+
+    @PutMapping("/{postId}")
+    public ResponseEntity<?> updatePost(@PathVariable int postId, @RequestBody Post post) {
+        logger.info("Received request to update post with id: {}", postId);
+        try {
+            Post updatedPost = postService.updatePost(postId, post);
+            logger.info("Updated post: {}", updatedPost);
+            return new ResponseEntity<>(updatedPost, HttpStatus.OK);
+        } catch (RuntimeException e) {
+            logger.error("Error updating post with id: {}", postId, e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+        }
+    }
+
+    @DeleteMapping("/{postId}")
+    public ResponseEntity<?> deletePost(@PathVariable int postId) {
+        logger.info("Received request to delete post with id: {}", postId);
+        try {
+            postService.deletePost(postId);
+            logger.info("Deleted post with id: {}", postId);
+            return new ResponseEntity<>("Post deleted successfully", HttpStatus.OK);
+        } catch (RuntimeException e) {
+            logger.error("Error deleting post with id: {}", postId, e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+        }
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<Post>> getPostsByUserId(@PathVariable int userId) {
+        logger.info("Received request to get posts for user with id: {}", userId);
+        try {
+            List<Post> posts = postService.getPostsByUserId(userId);
+            logger.info("Retrieved {} posts for user with id: {}", posts.size(), userId);
+            return new ResponseEntity<>(posts, HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Error retrieving posts for user with id: {}", userId, e);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }
 
 Contents of ./models\Post.java:
@@ -82,14 +156,29 @@ public class Post {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int postId;
+
     private String title;
     private String content;
     private boolean approved;
+    private int userId;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "user_id")
-    private User user;
+    // These fields are not persisted, just for data transfer
+    @Transient
+    private String userName;
+    @Transient
+    private String userEmail;
 
+    // Constructors
+    public Post() {}
+
+    public Post(String title, String content, int userId) {
+        this.title = title;
+        this.content = content;
+        this.userId = userId;
+        this.approved = false;
+    }
+
+    // Getters and Setters
     public int getPostId() {
         return postId;
     }
@@ -122,52 +211,76 @@ public class Post {
         this.approved = approved;
     }
 
-    public User getUser() {
-        return user;
+    public int getUserId() {
+        return userId;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public void setUserId(int userId) {
+        this.userId = userId;
     }
 
-    // Constructors, getters, and setters
-    
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
+
+    public String getUserEmail() {
+        return userEmail;
+    }
+
+    public void setUserEmail(String userEmail) {
+        this.userEmail = userEmail;
+    }
+
+    @Override
+    public String toString() {
+        return "Post{" +
+                "postId=" + postId +
+                ", title='" + title + '\'' +
+                ", content='" + content + '\'' +
+                ", approved=" + approved +
+                ", userId=" + userId +
+                ", userName='" + userName + '\'' +
+                ", userEmail='" + userEmail + '\'' +
+                '}';
+    }
 }
 
 Contents of ./models\User.java:
 package com.example.blogapp.models;
 
-import javax.persistence.*;
-
-@Entity
-@Table(name = "users")
 public class User {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int userId;
     private String username;
     private String email;
+
+    // Getters and setters
     public int getUserId() {
         return userId;
     }
+
     public void setUserId(int userId) {
         this.userId = userId;
     }
+
     public String getUsername() {
         return username;
     }
+
     public void setUsername(String username) {
         this.username = username;
     }
+
     public String getEmail() {
         return email;
     }
+
     public void setEmail(String email) {
         this.email = email;
     }
-
-   
-    
 }
 
 Contents of ./repositories\PostRepository.java:
@@ -179,76 +292,85 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface PostRepository extends JpaRepository<Post, Integer> {
 }
 
-Contents of ./repositories\UserRepository.java:
-package com.example.blogapp.repositories;
-
-import com.example.blogapp.models.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-
-public interface UserRepository extends JpaRepository<User, Integer> {
-}
-
 Contents of ./services\PostService.java:
 package com.example.blogapp.services;
 
-import java.util.List;
-
 import com.example.blogapp.models.Post;
-import com.example.blogapp.models.User;
 import com.example.blogapp.repositories.PostRepository;
-import com.example.blogapp.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class PostService {
+    private static final Logger logger = LoggerFactory.getLogger(PostService.class);
     @Autowired
     private PostRepository postRepository;
 
     @Autowired
-    private UserRepository userRepository;
+    private RestTemplate restTemplate;
 
-    public Post createPost(Post post) {
-        if (post.getUser() != null && post.getUser().getUserId() != 0) {
-            User user = userRepository.findById(post.getUser().getUserId())
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-            post.setUser(user);
-        }
-        return postRepository.save(post);
-    }
+    private static final String USER_SERVICE_URL = "http://user-service:8080/api/users/";
+
+    
 
     public void approvePost(int postId) {
-        Post post = postRepository.findById(postId).orElseThrow();
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("Post not found with id: " + postId));
         post.setApproved(true);
         postRepository.save(post);
     }
 
     public List<Post> getAllPosts() {
-        return postRepository.findAll();
+        List<Post> posts = postRepository.findAll();
+        posts.forEach(this::fetchAndSetUserDetails);
+        return posts;
     }
 
-    // Other methods for post management
-}
-
-Contents of ./services\UserService.java:
-package com.example.blogapp.services;
-
-import com.example.blogapp.models.User;
-import com.example.blogapp.repositories.UserRepository;
-import org.springframework.stereotype.Service;
-
-@Service
-public class UserService {
-    private final UserRepository userRepository;
-
-    public UserService(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public Post getPostById(int postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("Post not found with id: " + postId));
+        fetchAndSetUserDetails(post);
+        return post;
     }
 
-    public User createUser(User user) {
-        return userRepository.save(user);
+    public Post updatePost(int postId, Post postDetails) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("Post not found with id: " + postId));
+        post.setTitle(postDetails.getTitle());
+        post.setContent(postDetails.getContent());
+        return postRepository.save(post);
     }
 
-    // Other methods for user management
+    public void deletePost(int postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("Post not found with id: " + postId));
+        postRepository.delete(post);
+    }
+
+    public List<Post> getPostsByUserId(int userId) {
+        List<Post> allPosts = postRepository.findAll();
+        return allPosts.stream()
+                .filter(post -> post.getUserId() == userId)
+                .collect(Collectors.toList());
+    }
+
+    private void fetchAndSetUserDetails(Post post) {
+        try {
+            Map<String, Object> userDetails = restTemplate.getForObject(USER_SERVICE_URL + post.getUserId(), Map.class);
+            if (userDetails != null) {
+                post.setUserName((String) userDetails.get("username"));
+                post.setUserEmail((String) userDetails.get("email"));
+            }
+        } catch (Exception e) {
+            System.err.println("Error fetching user details for user id: " + post.getUserId());
+        }
+    }
 }
 
