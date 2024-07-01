@@ -1,3 +1,5 @@
+Adding auth features...
+
 1. Separation of Services:
    The main change is the separation of User and Post functionalities into two distinct services.
 
