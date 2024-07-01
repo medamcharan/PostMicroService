@@ -1,3 +1,137 @@
+Planning Microservices
+
+Architecture
+
+1. User Creation:
+
+The user creation process is handled within the same application as the post service. Here's how it works:
+
+```
+Client
+  |
+  | POST /api/users {username: "john", email: "john@example.com"}
+  v
++-------------------+
+|   Blog App        |
+| +---------------+ |
+| | UserController| |
+| +---------------+ |
+|         |         |
+|         v         |
+| +---------------+ |
+| |  UserService  | |
+| |  +---------+  | |
+| |  |  User   |  | |
+| |  | userId:0|  | | <-- Initially 0, will be set by DB
+| |  | username|  | |
+| |  | email   |  | |
+| |  +---------+  | |
+| +---------------+ |
+|         |         |
+|         v         |
+| +---------------+ |
+| |UserRepository | |
+| +---------------+ |
+|         |         |
+|         v         |
+| +---------------+ |
+| |   User DB     | |
+| | +---------+   | |
+| | |  User   |   | |
+| | | userId:1|   | | <-- Assigned by DB
+| | | username|   | |
+| | | email   |   | |
+| | +---------+   | |
+| +---------------+ |
++-------------------+
+          |
+          | Return created User
+          v
+Client
+```
+
+2. Post Creation:
+
+The post creation process involves creating a post and associating it with an existing user:
+
+```
+Client
+  |
+  | POST /api/posts {title: "New Post", content: "Content", user: {userId: 1}}
+  v
++-------------------+
+|   Blog App        |
+| +---------------+ |
+| | PostController| |
+| +---------------+ |
+|         |         |
+|         v         |
+| +---------------+ |
+| |  PostService  | |
+| |  +---------+  | |
+| |  |  Post   |  | |
+| |  | postId:0|  | | <-- Will be set by DB
+| |  | title   |  | |
+| |  | content |  | |
+| |  | user    |  | | <-- Contains userId: 1
+| |  +---------+  | |
+| +---------------+ |
+|         |         |
+|         | Fetch associated user
+|         v         |
+| +---------------+ |
+| |UserRepository | |
+| +---------------+ |
+|         |         |
+|         | User found
+|         v         |
+| +---------------+ |
+| |  PostService  | |
+| |  +---------+  | |
+| |  |  Post   |  | |
+| |  | postId:0|  | |
+| |  | title   |  | |
+| |  | content |  | |
+| |  | user    |  | | <-- Now contains full User object
+| |  +---------+  | |
+| +---------------+ |
+|         |         |
+|         v         |
+| +---------------+ |
+| |PostRepository | |
+| +---------------+ |
+|         |         |
+|         v         |
+| +---------------+ |
+| |   Post DB     | |
+| | +---------+   | |
+| | |  Post   |   | |
+| | | postId:1|   | | <-- Assigned by DB
+| | | title   |   | |
+| | | content |   | |
+| | | user_id |   | | <-- Foreign key to User
+| | +---------+   | |
+| +---------------+ |
++-------------------+
+          |
+          | Return created Post
+          v
+Client
+```
+
+Key points:
+
+1. Both User and Post entities are managed within the same application (BlogApp).
+2. The User entity is created and stored independently.
+3. When creating a Post, the client provides the userId of the associated User.
+4. The PostService fetches the full User object from the UserRepository before saving the Post.
+5. The Post is then saved with a reference to the full User object.
+6. The database handles the relationship between Post and User using a foreign key.
+
+This architecture allows for efficient management of both users and posts within a single application, while maintaining the relationship between them. The @ManyToOne annotation in the Post entity ensures that each post is associated with a user, and JPA handles the database relationships automatically.
+
+This illustrates the separation of concerns between services and how they interact to maintain data consistency across the system.
+
 1. Post Model Change:
 
 The Post model didn't change significantly. The main change was ensuring that the User relationship was properly defined.
@@ -116,3 +250,37 @@ These changes reflect the transition from a monolithic architecture to a microse
 3. Simplifying the User model in the Post service to only what's necessary for Post operations.
 
 These changes allow the Post service to operate independently while still maintaining the necessary associations with User data.
+
+1. `@Autowired private RestTemplate restTemplate;`
+
+   - RestTemplate is a Spring class used for making HTTP requests.
+   - The `@Autowired` annotation tells Spring to inject a RestTemplate bean into this field.
+
+2. `private static final String USER_SERVICE_URL = "http://user-service:8080/api/users/";`
+
+   - This is the base URL for the User Service microservice.
+   - "user-service" is likely a Docker service name or Kubernetes service name, allowing for service discovery in a containerized environment.
+
+3. `public Post createPost(Post post) { ... }`
+
+   - This method is responsible for creating a new blog post.
+
+4. `if (post.getUser() != null && post.getUser().getUserId() != 0) { ... }`
+
+   - This checks if the post has an associated user and if that user has a valid ID.
+
+5. `User user = restTemplate.getForObject(USER_SERVICE_URL + post.getUser().getUserId(), User.class);`
+
+   - If there's a valid user ID, this line makes an HTTP GET request to the User Service.
+   - It concatenates the base URL with the user ID to form the full URL.
+   - The `getForObject` method sends the request and expects a User object in response.
+   - This allows the Post Service to fetch up-to-date user information from the User Service.
+
+6. `post.setUser(user);`
+
+   - The retrieved user information is then set on the post object.
+
+7. `return postRepository.save(post);`
+   - Finally, the post (now with updated user information) is saved to the database.
+
+This approach demonstrates a key principle of microservices architecture: each service is responsible for its own domain (in this case, posts), but can communicate with other services (like the user service) to get necessary information. This allows for decoupling of services while still maintaining data consistency across the system.
