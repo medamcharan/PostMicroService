@@ -1,16 +1,17 @@
 package com.example.blogapp.services;
 
-import com.example.blogapp.models.Post;
-import com.example.blogapp.repositories.PostRepository;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.example.blogapp.models.Post;
+import com.example.blogapp.repositories.PostRepository;
 
 @Service
 public class PostService {
@@ -55,14 +56,14 @@ public class PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found with id: " + postId));
         post.setTitle(postDetails.getTitle());
-        post.setContent(postDetails.getContent());
+        post.setContent(postDetails.getContents()); 
         return postRepository.save(post);
     }
 
     public void deletePost(int postId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found with id: " + postId));
-        postRepository.delete(post);
+        postRepository.deleteById(postId); 
     }
 
     public List<Post> getPostsByUserId(int userId) {

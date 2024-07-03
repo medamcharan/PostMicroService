@@ -1,23 +1,32 @@
-package com.example.blogapp.controllers;
 
-import com.example.blogapp.models.Post;
-import com.example.blogapp.services.PostService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package com.example.blogapp.controllers;
 
 import java.util.List;
 
 import javax.annotation.PostConstruct;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.blogapp.models.Post;
+import com.example.blogapp.services.PostService;
+
 @RestController
 @RequestMapping("/api/posts")
 public class PostController {
     private static final Logger logger = LoggerFactory.getLogger(PostController.class);
-    
+
     @Autowired
     private PostService postService;
 
@@ -40,7 +49,7 @@ public class PostController {
     }
 
     @PutMapping("/{postId}/approve")
-    public ResponseEntity<?> approvePost(@PathVariable int postId) {
+    public ResponseEntity<?> approvePost(@PathVariable("id") int postId) { // Bug: Incorrect Path Variable name
         logger.info("Received request to approve post with id: {}", postId);
         try {
             postService.approvePost(postId);
@@ -84,7 +93,7 @@ public class PostController {
         try {
             Post updatedPost = postService.updatePost(postId, post);
             logger.info("Updated post: {}", updatedPost);
-            return new ResponseEntity<>(updatedPost, HttpStatus.OK);
+            return new ResponseEntity<>(updatedPost, HttpStatus.OK); // Bug: Missing @ResponseBody annotation
         } catch (RuntimeException e) {
             logger.error("Error updating post with id: {}", postId, e);
             return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
